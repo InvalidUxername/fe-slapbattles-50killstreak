@@ -1,0 +1,125 @@
+-- Get the player's PlayerGui and character
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local camera = game.Workspace.CurrentCamera
+
+-- Create a ScreenGui to hold the TextBox
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TextBoxGui"
+screenGui.Parent = playerGui
+
+-- Create the TextBox
+local textBox = Instance.new("TextBox")
+textBox.Name = "CommandTextBox"
+textBox.Parent = screenGui
+
+-- Set properties for the TextBox
+textBox.Size = UDim2.new(0, 150, 0, 25)  -- 200x50 pixels
+textBox.Position = UDim2.new(0.5, -75, 1, -30) -- Center of the screen
+textBox.AnchorPoint = Vector2.new(0.5, 1)  -- Center the TextBox
+textBox.PlaceholderText = "Killstreak" -- Placeholder text
+textBox.BackgroundColor3 = Color3.fromRGB(128, 128, 128) -- White background
+textBox.TextColor3 = Color3.fromRGB(0, 0, 0) -- Black text color
+
+-- Function to create the sphere and play the audio
+local function releaseSphere()
+	-- Create a black sphere
+	local sphere = Instance.new("Part")
+	sphere.Shape = Enum.PartType.Ball
+	sphere.Color = Color3.fromRGB(0, 0, 0) -- Black color
+	sphere.Size = Vector3.new(0, 0, 0) -- Start with a small size
+	sphere.Anchored = true
+	sphere.CanCollide = false
+	sphere.CFrame = character.HumanoidRootPart.CFrame -- Position at HumanoidRootPart
+	sphere.Parent = workspace
+
+	-- Play the audio
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://2042692050" -- Updated audio ID
+	sound.Parent = player
+	sound:Play()
+
+	wait(0.5)
+
+	-- Second audio
+	local sound2 = Instance.new("Sound")
+	sound2.SoundId = "rbxassetid://98205940491764" -- Updated audio ID
+	sound2.Parent = player
+	sound2:Play()
+
+	-- Create the ColorCorrectionEffect for the red tint
+	local colorCorrection = Instance.new("ColorCorrectionEffect")
+	colorCorrection.TintColor = Color3.fromRGB(255, 255, 255) -- Start with no tint
+	colorCorrection.Parent = game.Lighting
+
+	-- Tween the sphere to expand to 50 studs
+	local tweenService = game:GetService("TweenService")
+	local tweenInfo = TweenInfo.new(2, Enum.EasingStyle.Linear) -- 2 seconds to expand
+	local goal = {Size = Vector3.new(250, 250, 250)} -- Expand to 50 studs
+
+	local tween = tweenService:Create(sphere, tweenInfo, goal)
+	tween:Play()
+
+	-- Gradually turn the atmosphere and everything red
+	local redEffectTweenInfo = TweenInfo.new(18, Enum.EasingStyle.Linear) -- 18 seconds to transition
+	local redEffectGoal = {TintColor = Color3.fromRGB(255, 0, 0)} -- Turn everything red
+
+	local redEffectTween = tweenService:Create(colorCorrection, redEffectTweenInfo, redEffectGoal)
+	redEffectTween:Play()
+
+	-- Slow zoom-out effect using FOV
+	local initialFOV = camera.FieldOfView
+	local zoomOutFOV = 100 -- Target FOV for zoom-out
+	local zoomOutTweenInfo = TweenInfo.new(5, Enum.EasingStyle.Linear) -- 5 seconds for zoom-out
+	local zoomOutGoal = {FieldOfView = zoomOutFOV}
+
+	local zoomOutTween = tweenService:Create(camera, zoomOutTweenInfo, zoomOutGoal)
+	zoomOutTween:Play()
+
+	-- Wait for the tween to finish, then reset lighting and delete the sphere
+	tween.Completed:Connect(function()
+		sphere:Destroy()
+
+		-- Reset the atmosphere back to normal after a delay (e.g., 1 second)
+		wait(95)
+		local resetEffectTween = tweenService:Create(colorCorrection, TweenInfo.new(2), {TintColor = Color3.fromRGB(255, 255, 255)})
+		resetEffectTween:Play()
+
+		-- Remove the color correction effect after resetting
+		resetEffectTween.Completed:Connect(function()
+			colorCorrection:Destroy()
+		end)
+	end)
+
+	-- Stop zoom-out effect after 7.5 seconds
+	wait(5)
+	zoomOutTween:Cancel()
+end
+
+-- Function to gradually change WalkSpeed from 25 to 100 in 15 seconds
+local function speedTransition()
+	humanoid.WalkSpeed = 5 -- Start with 25 WalkSpeed
+
+	-- Set up TweenService to gradually increase WalkSpeed
+	local tweenService = game:GetService("TweenService")
+	local tweenInfo = TweenInfo.new(15, Enum.EasingStyle.Linear) -- 15 seconds, linear transition
+	local speedGoal = {WalkSpeed = 100} -- Target WalkSpeed = 100
+
+	local speedTween = tweenService:Create(humanoid, tweenInfo, speedGoal)
+	speedTween:Play()
+
+	-- Optional: handle when the tween completes
+	speedTween.Completed:Connect(function()
+	end)
+end
+
+-- Connect the TextBox input event to execute the functions
+textBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed and textBox.Text == "50" then
+		releaseSphere() -- Release the sphere and play sound
+		speedTransition() -- Start the WalkSpeed transition after clicking
+		textBox.Text = "" -- Clear the TextBox text
+	end
+end)
